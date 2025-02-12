@@ -25,7 +25,7 @@ x-studio-environment:
     PROBER_STUDIO_BASE_URL: http://studio-app:8080/{path}
 x-studio-worker:
   &studio-worker
-    image: koenswings/kolibri-studio:latest
+    image: koenswings/kolibri-studio
     restart: no
     #pull_policy: never
     depends_on:
@@ -63,7 +63,7 @@ services:
       - .docker/minio:/data
   
   postgres:
-    image: koenswings/kolibri-postgres:latest
+    image: koenswings/kolibri-postgres
     restart: no
     #pull_policy: never
     environment:
