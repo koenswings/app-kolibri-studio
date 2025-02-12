@@ -37,7 +37,15 @@ x-studio-worker:
     environment: *studio-environment
 services:
   studio-app:
-    <<: *studio-worker
+    #<<: *studio-worker
+    image: koenswings/kolibri-studio
+    restart: no
+    #pull_policy: never
+    depends_on:
+      - minio
+      - postgres
+      - redis
+    environment: *studio-environment
     entrypoint: python docker/entrypoint.py
     command: yarn run devserver
     volumes:
@@ -46,9 +54,9 @@ services:
       - "${port}:8080"
       - "4000:4000"
   
-  celery-worker:
-    <<: *studio-worker
-    command: make prodceleryworkers
+  #celery-worker:
+  #  <<: *studio-worker
+  #  command: make prodceleryworkers
   
   minio:
     image: minio/minio:RELEASE.2020-06-22T03-12-50Z
