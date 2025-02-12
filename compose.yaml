@@ -63,7 +63,7 @@ services:
       - .docker/minio:/data
   
   postgres:
-    image: koenswings/kolibri-progres:latest
+    image: koenswings/kolibri-postgres:latest
     restart: no
     #pull_policy: never
     environment:
