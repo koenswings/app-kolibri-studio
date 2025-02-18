@@ -47,7 +47,8 @@ services:
       - redis
     environment: *studio-environment
     entrypoint: python docker/entrypoint.py
-    command: yarn run devserver
+    command: yarn run runserver
+    #command: yarn run devserver
     volumes:
         - ./data:/src
     ports:
