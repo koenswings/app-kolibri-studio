@@ -38,7 +38,7 @@ x-studio-worker:
 services:
   studio-app:
     #<<: *studio-worker
-    image: koenswings/kolibri-studio
+    image: koenswings/kolibri-studio:1.0-2024.12.03
     restart: no
     pull_policy: never
     depends_on:
@@ -74,7 +74,7 @@ services:
       - .docker/minio:/data
   
   postgres:
-    image: koenswings/kolibri-postgres
+    image: koenswings/kolibri-postgres:1.0-2024.12.03
     restart: no
     pull_policy: never
     environment:
