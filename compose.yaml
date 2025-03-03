@@ -38,7 +38,8 @@ x-studio-worker:
 services:
   studio-app:
     #<<: *studio-worker
-    image: koenswings/kolibri-studio:1.0-2024.12.03
+    #image: koenswings/kolibri-studio:1.01-2024.12.03
+    image: koenswings/kolibri-studio:latest_dev
     restart: no
     pull_policy: never
     depends_on:
