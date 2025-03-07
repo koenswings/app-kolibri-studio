@@ -50,8 +50,9 @@ services:
     entrypoint: python docker/entrypoint.py
     # command: yarn run runserver  # Use this when building during image construction
     command: yarn run devserver
-    volumes:
-        - ./data:/src
+    #OBSOLETE - This will overwrite the /src folder
+    #volumes:
+    #    - ./data:/src
     ports:
       - "${port}:8080"
       - "4000:4000"
