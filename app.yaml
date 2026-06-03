@@ -1,0 +1,55 @@
+app: kolibri-studio
+idea_app_version: "1.0"
+
+compatibility:
+  engine_min: "0.9.0"
+  engine_tested: "unknown"
+
+services:
+  - name: studio-app
+    build: custom
+    dockerfile: Dockerfile
+    image: koenswings/kolibri-studio
+    current_version: "unknown"
+    monitors:
+      - kind: github-release
+        repo: learningequality/studio
+        notes: "Monitor GitHub releases for new Kolibri Studio versions."
+
+  - name: postgres
+    build: retag
+    upstream: postgres
+    upstream_tag: "16"
+    image: koenswings/kolibri-studio-postgres
+    current_version: "unknown"
+    monitors:
+      - kind: dockerhub
+        repo: library/postgres
+        tag_pattern: "^\\d+$"
+
+  - name: redis
+    build: retag
+    upstream: redis
+    upstream_tag: "7"
+    image: koenswings/kolibri-studio-redis
+    current_version: "unknown"
+    monitors:
+      - kind: dockerhub
+        repo: library/redis
+        tag_pattern: "^\\d+$"
+
+  - name: minio
+    build: retag
+    upstream: minio/minio
+    upstream_tag: "latest"
+    image: koenswings/kolibri-studio-minio
+    current_version: "unknown"
+    monitors:
+      - kind: dockerhub
+        repo: minio/minio
+        tag_pattern: "^RELEASE\\.\\d{4}-\\d{2}-\\d{2}"
+
+notes: >
+  Kolibri Studio is complex (5+ services). Needs proper audit before first
+  Kit-managed release. Current compose.yaml references dev settings and is
+  not production-ready as-is.
