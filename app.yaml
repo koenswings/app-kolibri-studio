@@ -7,7 +7,10 @@ compatibility:
 
 services:
   - name: studio-app
+    # Production image (yarn run build + collectstatic in the build, gunicorn + whitenoise), built on an
+    # ARM64 Pi from koenswings/service-kolibri-studio (Dockerfile). Not built or published yet (#2).
     build: custom
+    source: https://github.com/koenswings/service-kolibri-studio
     dockerfile: Dockerfile
     image: koenswings/kolibri-studio
     current_version: "unknown"
@@ -33,15 +36,18 @@ services:
         tag_pattern: "^\\d+$"
 
   - name: redis
-    build: retag
+    # compose runs the official redis:6.0.9 as is (Studio v2024.12.03 docker-compose.yml; manifest list has
+    # linux/arm64/v8). Cache and celery broker only, no volume. A new Redis series (6.0 -> 6.2/7) is a
+    # stateful-image move for check-compose --base-ref, so the monitor stays on 6.0.x.
+    build: direct
     upstream: redis
-    upstream_tag: "7"
-    image: koenswings/kolibri-studio-redis
-    current_version: "unknown"
+    upstream_tag: "6.0.9"
+    image: redis
+    current_version: "6.0.9"
     monitors:
       - kind: dockerhub
         repo: library/redis
-        tag_pattern: "^\\d+$"
+        tag_pattern: "^6\\.0\\.\\d+$"
 
   - name: minio
     build: retag
@@ -55,6 +61,6 @@ services:
         tag_pattern: "^RELEASE\\.\\d{4}-\\d{2}-\\d{2}"
 
 notes: >
-  Kolibri Studio is complex (5+ services). Needs proper audit before first
-  Kit-managed release. Current compose.yaml references dev settings and is
-  not production-ready as-is.
+  Kolibri Studio is complex (4 services; celery worker not yet added). studio-app
+  now runs a production build (idea_settings, gunicorn + whitenoise); the
+  remaining release blockers are in koenswings/app-kolibri-studio#2.

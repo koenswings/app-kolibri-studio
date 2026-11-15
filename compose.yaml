@@ -26,31 +26,25 @@ x-studio-environment:
     SHELL: /bin/bash
     AWS_S3_ENDPOINT_URL: http://minio:9000
     DATA_DB_HOST: postgres
-    DJANGO_SETTINGS_MODULE: contentcuration.dev_settings
-    RUN_MODE: docker-compose
+    # Production settings for an offline Pi (koenswings/service-kolibri-studio idea_settings.py): DEBUG off,
+    # whitenoise for /static/, MinIO storage, console e-mail. Not dev_settings (devserver, DEBUG, dev_urls).
+    DJANGO_SETTINGS_MODULE: contentcuration.idea_settings
+    # k8s: Studio links stored files as same-origin /content/... URLs (models.generate_storage_url), which
+    # idea_urls.py streams from MinIO. docker-compose mode links http://localhost:9000/..., which only a
+    # browser on the Pi itself can open.
+    RUN_MODE: k8s
     CELERY_TIMEZONE: America/Los_Angeles
     CELERY_REDIS_DB: 0
     CELERY_BROKER_ENDPOINT: redis
     CELERY_RESULT_BACKEND_ENDPOINT: redis
     CELERY_REDIS_PASSWORD: ""
-    PROBER_STUDIO_BASE_URL: http://studio-app:8080/{path}
-x-studio-worker:
-  &studio-worker
-    image: koenswings/kolibri-studio
-    restart: no
-    pull_policy: never
-    depends_on:
-      - minio
-      - postgres
-      - redis
-    volumes:
-      - .:/src
-    environment: *studio-environment
 services:
   studio-app:
-    #<<: *studio-worker
-    #image: koenswings/kolibri-studio:1.01-2024.12.03
-    image: koenswings/kolibri-studio:latest_dev
+    # Production image (koenswings/service-kolibri-studio Dockerfile): yarn run build + collectstatic in the
+    # image build, gunicorn + whitenoise on 8080, docker/idea-entrypoint.py (waits for Postgres and MinIO,
+    # bucket, migrate, loadconstants, one admin). Tag not built yet: build on an ARM64 Pi, then pin the
+    # digest (release blockers, #2).
+    image: koenswings/kolibri-studio:1.0-2024.12.03
     restart: no
     pull_policy: never
     depends_on:
@@ -58,20 +52,12 @@ services:
       - postgres
       - redis
     environment: *studio-environment
-    entrypoint: python docker/entrypoint.py
-    # command: yarn run runserver  # Use this when building during image construction
-    command: yarn run devserver
-    #OBSOLETE - This will overwrite the /src folder
-    #volumes:
-    #    - ./data:/src
+    # Entrypoint and command come from the image (python docker/idea-entrypoint.py, then gunicorn on
+    # 0.0.0.0:8080). No webpack devserver, so no fixed 4000 port.
     ports:
       - "${port}:8080"
-      # Fixed on purpose: the devserver (yarn run devserver = webpack serve, Studio webpack.config.js) serves
-      # the JS bundles on 4000 and the pages load them from http://127.0.0.1:4000/dist/ (dev publicPath), so
-      # it can be neither dropped nor remapped while studio-app runs the devserver. A production build
-      # (yarn run build + runserver) removes it; release blocker, see the backlog issue.
-      - "4000:4000"
-    # Primary service. Django runserver on 8080; /healthz needs the database (idea#403 PR #1, not Pi-tested).
+    # Primary service. /healthz needs the database (Studio views.health). python is in the image
+    # (python:3.10-slim-bookworm base). start_period covers migrate on a first start; measure on a Pi.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=8)"]
       interval: 30s
@@ -80,11 +66,12 @@ services:
       start_period: 900s
     labels:
       x-app-version: "1.1"
-  
-  #celery-worker:
-  #  <<: *studio-worker
-  #  command: make prodceleryworkers
-  
+
+  # Studio runs background work (publishing, channel copy/sync, exports) in celery. There is no worker yet:
+  # see #2. A worker would use the studio-app image with command
+  # ["celery", "--workdir", "contentcuration", "-A", "contentcuration", "worker", "-l", "info", "--concurrency=2"]
+  # and no bind of the App folder.
+
   minio:
     #image: minio/minio:RELEASE.2020-06-22T03-12-50Z
     #image: minio/minio:RELEASE.2025-02-07T23-21-09Z-cpuv1
