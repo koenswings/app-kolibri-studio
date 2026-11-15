@@ -1,4 +1,3 @@
-version: '3.4'
 x-app:
   name: kolibri-studio
   title: Kolibri Studio
@@ -9,6 +8,18 @@ x-app:
   category: education
   icon: icon.png
   author: Koen Swings  # Who created this compose file? (not the app ;-)
+  # App version <major>.<minor> (idea#76); upstream: Studio v2024.12.03. No date suffix: the Engine reads
+  # a date-shaped version (1.1-2024.12.03) as unversioned (Version.ts DATE_RE) and splits the app id wrongly.
+  # 1.1 follows the existing git tag 1.0-2024.12.03; the release tag must be "1.1". Not released yet.
+  version: "1.1"
+  # updateApp fields (agent-app-dev docs/app-bundle-integrity.md). /healthz reads the database
+  # (contentcuration views.health). healthTimeout is a placeholder until measured on a Pi.
+  healthCheck:
+    path: /healthz
+  healthTimeout: 1800
+  updatesFrom: []
+  migrationNote: ""
+  snapshotExclude: []
 x-studio-environment:
   &studio-environment
     MPLBACKEND: ps
@@ -55,7 +66,20 @@ services:
     #    - ./data:/src
     ports:
       - "${port}:8080"
+      # Fixed on purpose: the devserver (yarn run devserver = webpack serve, Studio webpack.config.js) serves
+      # the JS bundles on 4000 and the pages load them from http://127.0.0.1:4000/dist/ (dev publicPath), so
+      # it can be neither dropped nor remapped while studio-app runs the devserver. A production build
+      # (yarn run build + runserver) removes it; release blocker, see the backlog issue.
       - "4000:4000"
+    # Primary service. Django runserver on 8080; /healthz needs the database (idea#403 PR #1, not Pi-tested).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=8)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+    labels:
+      x-app-version: "1.1"
   
   #celery-worker:
   #  <<: *studio-worker
@@ -73,7 +97,9 @@ services:
       MINIO_SECRET_KEY: development
       MINIO_API_CORS_ALLOW_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080'
     volumes:
-      - .docker/minio:/data
+      - ./data/minio:/data
+    labels:
+      x-app-version: "1.1"
   
   postgres:
     image: koenswings/kolibri-postgres:1.0-2024.12.03
@@ -85,15 +111,14 @@ services:
       POSTGRES_PASSWORD: kolibri
       POSTGRES_DB: kolibri-studio
     volumes:
-      - pgdata:/var/lib/postgresql/data/pgdata
-      - .docker/postgres:/docker-entrypoint-initdb.d
+      - ./data/postgres:/var/lib/postgresql/data/pgdata
+      - ./data/postgres-initdb:/docker-entrypoint-initdb.d
+    labels:
+      x-app-version: "1.1"
   
   redis:
     image: redis:6.0.9
     restart: no
     pull_policy: never
-
-
-volumes:
-  minio_data:
-  pgdata:
+    labels:
+      x-app-version: "1.1"
