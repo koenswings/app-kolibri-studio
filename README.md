@@ -12,16 +12,16 @@ Compose file for the kolibri-studio app
 
 ## Images (release blockers, #2)
 
-- **studio-app** `koenswings/kolibri-studio:<tag>` is a production build from
+- **studio-app** and **celery-worker** `koenswings/kolibri-studio:1.0-2025.01.24` (upstream learningequality/studio `53a2e6505f`) is a production build from
   [koenswings/service-kolibri-studio](https://github.com/koenswings/service-kolibri-studio) `Dockerfile`:
   - `yarn run build` + `collectstatic` run in the image build;
   - gunicorn + whitenoise serve on 8080, with `contentcuration.idea_settings` and `RUN_MODE=k8s`;
   - `docker/idea-entrypoint.py` migrates the database and creates the bucket and one admin.
   - There is no webpack devserver, so no `4000` port.
-- **postgres** `koenswings/kolibri-postgres:<tag>` comes from
+- **postgres** `koenswings/kolibri-postgres:1.0-2024.12.03` comes from
   [koenswings/service-kolibri-postgres](https://github.com/koenswings/service-kolibri-postgres)
   (`postgres:12` + pgvector).
-- **redis** `redis:6.0.9` is the official image (linux/arm64/v8 in the manifest list).
+- **redis** `redis:7.2.17@sha256:5b816bb3…` is the official image (multi-arch, linux/arm64/v8), persistence off.
 - Both custom images are built on an ARM64 Pi, so `docker manifest inspect` can't check them before
   they are published. Check `docker image inspect --format '{{.Architecture}}' <image>` on the Pi
   that builds them, then publish and pin `repo:tag@sha256:…`.
