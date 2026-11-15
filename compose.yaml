@@ -121,9 +121,10 @@ services:
       x-app-version: "1.1"
   
   postgres:
-    # Postgres 12 + pgvector (koenswings/service-kolibri-postgres). Rebuilt under a new tag (a rebuild must never
-    # move an existing tag); 2025.01.24 = the Studio source the App runs, upstream_tag "12" in app.yaml.
-    image: koenswings/kolibri-postgres:1.1-2025.01.24
+    # Postgres 12 + pgvector (koenswings/service-kolibri-postgres). Same image as release 1.0-2024.12.03: that
+    # release has no app.yaml, so check-compose --base-ref cannot read the Postgres series of its date tag and any
+    # other postgres image (new tag, or even a digest pin) fails closed without an App major (see #2).
+    image: koenswings/kolibri-postgres:1.0-2024.12.03
     restart: no
     pull_policy: never
     environment:

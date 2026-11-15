@@ -9,7 +9,7 @@ Not released. The Lead sets the tag `1.1` (see #2).
   the `v2024.12.03` release tag, so the image tags carry `2025.01.24`.
 - **Images:**
   - `koenswings/kolibri-studio:1.0-2025.01.24`: production build (webpack prod + collectstatic in the image, gunicorn + whitenoise), also runs the celery worker;
-  - `koenswings/kolibri-postgres:1.1-2025.01.24`: Postgres 12 + pgvector;
+  - `koenswings/kolibri-postgres:1.0-2024.12.03`: Postgres 12 + pgvector (unchanged);
   - `redis:7.2.17`;
   - MinIO: see the silo PR.
 - **Changes since 1.0-2024.12.03:**
