@@ -9,6 +9,17 @@ x-app:
   category: education
   icon: icon.png
   author: Koen Swings  # Who created this compose file? (not the app ;-)
+  # <idea major>.<minor>-<Studio upstream>: 1.1 follows the existing git tag 1.0-2024.12.03 (same Studio
+  # v2024.12.03, compose changed). Not released as an App yet (idea#76 release tags, agent-app-dev AGENTS.md).
+  version: "1.1-2024.12.03"
+  # updateApp fields (agent-app-dev docs/app-bundle-integrity.md). /healthz reads the database
+  # (contentcuration views.health). healthTimeout is a placeholder until measured on a Pi.
+  healthCheck:
+    path: /healthz
+  healthTimeout: 1800
+  updatesFrom: []
+  migrationNote: ""
+  snapshotExclude: []
 x-studio-environment:
   &studio-environment
     MPLBACKEND: ps
@@ -56,6 +67,15 @@ services:
     ports:
       - "${port}:8080"
       - "4000:4000"
+    # Primary service. Django runserver on 8080; /healthz needs the database (idea#403 PR #1, not Pi-tested).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=8)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+    labels:
+      x-app-version: "1.1-2024.12.03"
   
   #celery-worker:
   #  <<: *studio-worker
@@ -73,7 +93,9 @@ services:
       MINIO_SECRET_KEY: development
       MINIO_API_CORS_ALLOW_ORIGIN: 'http://localhost:8080,http://127.0.0.1:8080'
     volumes:
-      - .docker/minio:/data
+      - ./data/minio:/data
+    labels:
+      x-app-version: "1.1-2024.12.03"
   
   postgres:
     image: koenswings/kolibri-postgres:1.0-2024.12.03
@@ -85,15 +107,14 @@ services:
       POSTGRES_PASSWORD: kolibri
       POSTGRES_DB: kolibri-studio
     volumes:
-      - pgdata:/var/lib/postgresql/data/pgdata
-      - .docker/postgres:/docker-entrypoint-initdb.d
+      - ./data/postgres:/var/lib/postgresql/data/pgdata
+      - ./data/postgres-initdb:/docker-entrypoint-initdb.d
+    labels:
+      x-app-version: "1.1-2024.12.03"
   
   redis:
     image: redis:6.0.9
     restart: no
     pull_policy: never
-
-
-volumes:
-  minio_data:
-  pgdata:
+    labels:
+      x-app-version: "1.1-2024.12.03"
