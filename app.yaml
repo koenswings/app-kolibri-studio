@@ -9,11 +9,15 @@ services:
   - name: studio-app
     # Production image (yarn run build + collectstatic in the build, gunicorn + whitenoise), built on an
     # ARM64 Pi from koenswings/service-kolibri-studio (Dockerfile). Not built or published yet (#2).
+    # Source: upstream learningequality/studio commit 53a2e6505f (2025-01-24, unstable/hotfixes), not a
+    # release tag; the image tag carries that date. upstream_tag is that commit (no release to name).
     build: custom
     source: https://github.com/koenswings/service-kolibri-studio
     dockerfile: Dockerfile
+    upstream: learningequality/studio
+    upstream_tag: "53a2e6505f"
     image: koenswings/kolibri-studio
-    current_version: "unknown"
+    current_version: "1.0-2025.01.24"
     monitors:
       - kind: github-release
         repo: learningequality/studio
@@ -21,33 +25,36 @@ services:
 
   - name: postgres
     # Built (not pulled; compose pull_policy: never) from koenswings/service-kolibri-postgres, a copy of
-    # Studio v2024.12.03 docker/Dockerfile.postgres.dev: FROM postgres:$PG_MAJOR with ARG PG_MAJOR=12
+    # Studio v2024.12.03 docker/Dockerfile.postgres.dev (identical at 53a2e6505f): FROM postgres:$PG_MAJOR with ARG PG_MAJOR=12
     # (Studio's docker-compose passes no build args), plus pgvector. Date retag: keep upstream_tag equal
     # to the Postgres major the image is built from, on every rebuild (idea#403 check-compose --base-ref).
+    # Upstream Studio at 53a2e6505f tests and documents Postgres 12 only (CI pythontest.yml postgres:12,
+    # Dockerfile.postgres.dev PG_MAJOR=12, docs postgresql-12), so the App stays on 12 (EOL: #2).
     build: custom
     source: https://github.com/koenswings/service-kolibri-postgres
     upstream: postgres
     upstream_tag: "12"
     image: koenswings/kolibri-postgres
-    current_version: "1.0-2024.12.03"
+    current_version: "1.1-2025.01.24"
     monitors:
       - kind: dockerhub
         repo: library/postgres
         tag_pattern: "^\\d+$"
 
   - name: redis
-    # compose runs the official redis:6.0.9 as is (Studio v2024.12.03 docker-compose.yml; manifest list has
-    # linux/arm64/v8). Cache and celery broker only, no volume. A new Redis series (6.0 -> 6.2/7) is a
-    # stateful-image move for check-compose --base-ref, so the monitor stays on 6.0.x.
+    # compose runs the official redis:7.2.17, pinned by its multi-arch digest (linux/arm64/v8 included).
+    # 7.2 is the last BSD-licensed series (7.4+ RSALv2/SSPL). Upstream Studio CI tests 6.0.9; 7.2 is a deliberate
+    # move (#2). Cache and celery broker only, persistence off, no volume. The monitor stays on 7.2.x: another
+    # series is a deliberate change.
     build: direct
     upstream: redis
-    upstream_tag: "6.0.9"
+    upstream_tag: "7.2.17"
     image: redis
-    current_version: "6.0.9"
+    current_version: "7.2.17"
     monitors:
       - kind: dockerhub
         repo: library/redis
-        tag_pattern: "^6\\.0\\.\\d+$"
+        tag_pattern: "^7\\.2\\.\\d+$"
 
   - name: minio
     build: retag
@@ -61,6 +68,7 @@ services:
         tag_pattern: "^RELEASE\\.\\d{4}-\\d{2}-\\d{2}"
 
 notes: >
-  Kolibri Studio is complex (4 services; celery worker not yet added). studio-app
-  now runs a production build (idea_settings, gunicorn + whitenoise); the
-  remaining release blockers are in koenswings/app-kolibri-studio#2.
+  Kolibri Studio: studio-app (production build: idea_settings, gunicorn +
+  whitenoise, same-origin uploads), celery-worker, minio, postgres 12, redis 7.2.
+  Source is upstream learningequality/studio 53a2e6505f (2025-01-24). Remaining
+  release blockers are in koenswings/app-kolibri-studio#2.
