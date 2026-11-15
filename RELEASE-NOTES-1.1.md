@@ -17,5 +17,5 @@ Not released. The Lead sets the tag `1.1` (see #2).
   - same-origin file links (`/content/`) and uploads (`/content-upload/`, proxied to MinIO with the signed Host);
   - a celery worker;
   - the Site domain comes from the Pi's name (`<hostname>.local:<port>`) or `STUDIO_SITE_DOMAIN`;
-  - one admin (`STUDIO_ADMIN_EMAIL` / `STUDIO_ADMIN_PASSWORD`) and no sample data;
+  - one admin, default login `admin` / `admin911!` (`STUDIO_ADMIN_EMAIL` / `STUDIO_ADMIN_PASSWORD`), and no sample data;
   - Redis 6.0 -> 7.2.

@@ -44,8 +44,8 @@ x-studio-environment:
     STUDIO_SITE_DOMAIN: ${STUDIO_SITE_DOMAIN:-}
     IDEA_HOSTNAME: ${IDEA_HOSTNAME:-}
     IDEA_APP_PORT: ${port}
-    # First admin, created only when there is no admin yet. Empty = image defaults (admin@idea.local /
-    # admin911!; Studio's login form only takes an e-mail address). Never logged.
+    # First admin, created only when there is no admin yet. Empty = image defaults (account admin@idea.local,
+    # password admin911!; log in as "admin" via the IDEA login alias, or with the e-mail). Never logged.
     STUDIO_ADMIN_EMAIL: ${STUDIO_ADMIN_EMAIL:-}
     STUDIO_ADMIN_PASSWORD: ${STUDIO_ADMIN_PASSWORD:-}
 services:
