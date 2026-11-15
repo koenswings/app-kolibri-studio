@@ -17,11 +17,16 @@ services:
         notes: "Monitor GitHub releases for new Kolibri Studio versions."
 
   - name: postgres
-    build: retag
+    # Built (not pulled; compose pull_policy: never) from koenswings/service-kolibri-postgres, a copy of
+    # Studio v2024.12.03 docker/Dockerfile.postgres.dev: FROM postgres:$PG_MAJOR with ARG PG_MAJOR=12
+    # (Studio's docker-compose passes no build args), plus pgvector. Date retag: keep upstream_tag equal
+    # to the Postgres major the image is built from, on every rebuild (idea#403 check-compose --base-ref).
+    build: custom
+    source: https://github.com/koenswings/service-kolibri-postgres
     upstream: postgres
-    upstream_tag: "16"
-    image: koenswings/kolibri-studio-postgres
-    current_version: "unknown"
+    upstream_tag: "12"
+    image: koenswings/kolibri-postgres
+    current_version: "1.0-2024.12.03"
     monitors:
       - kind: dockerhub
         repo: library/postgres
