@@ -43,15 +43,16 @@ services:
         tag_pattern: "^\\d+$"
 
   - name: minio
-    build: retag
-    upstream: minio/minio
-    upstream_tag: "latest"
-    image: koenswings/kolibri-studio-minio
-    current_version: "unknown"
+    # pgsty/silo (MinIO fork; minio/minio is no longer published), used as is and pinned by digest in compose.
+    build: direct
+    upstream: pgsty/silo
+    upstream_tag: "RELEASE.2026-11-12T00-00-00Z"
+    image: pgsty/silo
+    current_version: "RELEASE.2026-11-12T00-00-00Z"
     monitors:
       - kind: dockerhub
-        repo: minio/minio
-        tag_pattern: "^RELEASE\\.\\d{4}-\\d{2}-\\d{2}"
+        repo: pgsty/silo
+        tag_pattern: "^RELEASE\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z$"
 
 notes: >
   Kolibri Studio is complex (5+ services). Needs proper audit before first
