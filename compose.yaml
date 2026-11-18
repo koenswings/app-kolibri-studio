@@ -8,7 +8,7 @@ x-app:
   category: education
   icon: icon.png
   author: Koen Swings  # Who created this compose file? (not the app ;-)
-  # App version <major>.<minor> (idea#76); upstream: Studio v2024.12.03. No date suffix: the Engine reads
+  # App version <major>.<minor> (idea#76); upstream: learningequality/studio 53a2e6505f (2025-01-24). No date suffix: the Engine reads
   # a date-shaped version (1.1-2024.12.03) as unversioned (Version.ts DATE_RE) and splits the app id wrongly.
   # 1.1 follows the existing git tag 1.0-2024.12.03; the release tag must be "1.1". Not released yet.
   version: "1.1"
@@ -26,31 +26,36 @@ x-studio-environment:
     SHELL: /bin/bash
     AWS_S3_ENDPOINT_URL: http://minio:9000
     DATA_DB_HOST: postgres
-    DJANGO_SETTINGS_MODULE: contentcuration.dev_settings
-    RUN_MODE: docker-compose
+    # Production settings for an offline Pi (koenswings/service-kolibri-studio idea_settings.py): DEBUG off,
+    # whitenoise for /static/, MinIO storage, console e-mail. Not dev_settings (devserver, DEBUG, dev_urls).
+    DJANGO_SETTINGS_MODULE: contentcuration.idea_settings
+    # k8s: Studio links stored files as same-origin /content/... URLs (models.generate_storage_url), which
+    # idea_urls.py streams from MinIO. docker-compose mode links http://localhost:9000/..., which only a
+    # browser on the Pi itself can open.
+    RUN_MODE: k8s
     CELERY_TIMEZONE: America/Los_Angeles
     CELERY_REDIS_DB: 0
     CELERY_BROKER_ENDPOINT: redis
     CELERY_RESULT_BACKEND_ENDPOINT: redis
     CELERY_REDIS_PASSWORD: ""
-    PROBER_STUDIO_BASE_URL: http://studio-app:8080/{path}
-x-studio-worker:
-  &studio-worker
-    image: koenswings/kolibri-studio
-    restart: no
-    pull_policy: never
-    depends_on:
-      - minio
-      - postgres
-      - redis
-    volumes:
-      - .:/src
-    environment: *studio-environment
+    # Django Site domain (activation/reset links): STUDIO_SITE_DOMAIN if set in the instance .env, else
+    # <IDEA_HOSTNAME>.local:<port>. The Engine writes IDEA_HOSTNAME (bare hostname) into every instance .env on
+    # every start (agent-engine-dev#163, HostIdentity.ts). Never studio.learningequality.org.
+    STUDIO_SITE_DOMAIN: ${STUDIO_SITE_DOMAIN:-}
+    IDEA_HOSTNAME: ${IDEA_HOSTNAME:-}
+    IDEA_APP_PORT: ${port}
+    # First admin, created only when there is no admin yet. Empty = image defaults (account admin@idea.local,
+    # password admin911!; log in as "admin" via the IDEA login alias, or with the e-mail). Never logged.
+    STUDIO_ADMIN_EMAIL: ${STUDIO_ADMIN_EMAIL:-}
+    STUDIO_ADMIN_PASSWORD: ${STUDIO_ADMIN_PASSWORD:-}
 services:
   studio-app:
-    #<<: *studio-worker
-    #image: koenswings/kolibri-studio:1.01-2024.12.03
-    image: koenswings/kolibri-studio:latest_dev
+    # Production image (koenswings/service-kolibri-studio Dockerfile): yarn run build + collectstatic in the
+    # image build, gunicorn + whitenoise on 8080, docker/idea-entrypoint.py (waits for Postgres and MinIO,
+    # bucket, migrate, loadconstants, Site domain, one admin). Same-origin uploads: /content-upload/ is proxied
+    # to MinIO by studio-app itself. Source: upstream learningequality/studio 53a2e6505f (2025-01-24), hence
+    # the 2025.01.24 suffix. Tag not built yet: build on an ARM64 Pi, then pin the digest (release blockers, #2).
+    image: koenswings/kolibri-studio:1.0-2025.01.24
     restart: no
     pull_policy: never
     depends_on:
@@ -58,20 +63,12 @@ services:
       - postgres
       - redis
     environment: *studio-environment
-    entrypoint: python docker/entrypoint.py
-    # command: yarn run runserver  # Use this when building during image construction
-    command: yarn run devserver
-    #OBSOLETE - This will overwrite the /src folder
-    #volumes:
-    #    - ./data:/src
+    # Entrypoint and command come from the image (python docker/idea-entrypoint.py, then gunicorn on
+    # 0.0.0.0:8080). No webpack devserver, so no fixed 4000 port.
     ports:
       - "${port}:8080"
-      # Fixed on purpose: the devserver (yarn run devserver = webpack serve, Studio webpack.config.js) serves
-      # the JS bundles on 4000 and the pages load them from http://127.0.0.1:4000/dist/ (dev publicPath), so
-      # it can be neither dropped nor remapped while studio-app runs the devserver. A production build
-      # (yarn run build + runserver) removes it; release blocker, see the backlog issue.
-      - "4000:4000"
-    # Primary service. Django runserver on 8080; /healthz needs the database (idea#403 PR #1, not Pi-tested).
+    # Primary service. /healthz needs the database (Studio views.health). python is in the image
+    # (python:3.10-slim-bookworm base). start_period covers migrate on a first start; measure on a Pi.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=8)"]
       interval: 30s
@@ -80,11 +77,33 @@ services:
       start_period: 900s
     labels:
       x-app-version: "1.1"
-  
-  #celery-worker:
-  #  <<: *studio-worker
-  #  command: make prodceleryworkers
-  
+
+  # Background work (publishing, channel copy/sync, exports): Studio's celery worker, same image, upstream
+  # command ("make prodceleryworkers" = celery -A contentcuration worker -l info --concurrency=3 --task-events,
+  # Studio docker-compose.yml celery-worker). --no-prepare: studio-app migrates; the worker starts once
+  # studio-app is healthy. No ports, no data (results go to Postgres, the queue to redis).
+  celery-worker:
+    image: koenswings/kolibri-studio:1.0-2025.01.24
+    restart: no
+    pull_policy: never
+    depends_on:
+      studio-app:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment: *studio-environment
+    entrypoint: ["python", "docker/idea-entrypoint.py", "--no-prepare"]
+    command: ["make", "prodceleryworkers"]
+    # Not the primary service. A ping through the broker every 2 minutes (importing Django takes a while on a Pi).
+    healthcheck:
+      test: ["CMD-SHELL", "cd contentcuration && celery -A contentcuration inspect ping -d celery@$$HOSTNAME --timeout 20"]
+      interval: 120s
+      timeout: 60s
+      retries: 3
+      start_period: 300s
+    labels:
+      x-app-version: "1.1"
+
   minio:
     #image: minio/minio:RELEASE.2020-06-22T03-12-50Z
     #image: minio/minio:RELEASE.2025-02-07T23-21-09Z-cpuv1
@@ -102,6 +121,9 @@ services:
       x-app-version: "1.1"
   
   postgres:
+    # Postgres 12 + pgvector (koenswings/service-kolibri-postgres). Same image as release 1.0-2024.12.03: that
+    # release has no app.yaml, so check-compose --base-ref cannot read the Postgres series of its date tag and any
+    # other postgres image (new tag, or even a digest pin) fails closed without an App major (see #2).
     image: koenswings/kolibri-postgres:1.0-2024.12.03
     restart: no
     pull_policy: never
@@ -117,7 +139,10 @@ services:
       x-app-version: "1.1"
   
   redis:
-    image: redis:6.0.9
+    # Official Redis 7.2 (BSD-3; 7.4+ is RSALv2/SSPL), multi-arch index incl. linux/arm64/v8. Cache and celery
+    # broker only: persistence off, no volume (a restart drops queued tasks, not data).
+    image: redis:7.2.17@sha256:5b816bb37d9707a70f10ef5002ecf8ee431750d397010fc4314c93dca887962f
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     restart: no
     pull_policy: never
     labels:

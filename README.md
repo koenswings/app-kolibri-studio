@@ -9,3 +9,19 @@ Compose file for the kolibri-studio app
 - **It fails** in a shallow clone (`git fetch --unshallow --tags`; CI: `fetch-depth: 0`) and in a clone with no release tags at all (`git fetch --tags`).
 - **First release:** if the repo has release tags but none of them is an ancestor, it is skipped with a note. If there are no release tags at all, a real first release must set `CHECK_BASE_REF_FIRST_RELEASE=1`.
 - `node --test tests/release-base-ref.test.mjs` tests it. The compare runs only when `AAD_CHECK_COMPOSE` is set.
+
+## Images (release blockers, #2)
+
+- **studio-app** and **celery-worker** `koenswings/kolibri-studio:1.0-2025.01.24` (upstream learningequality/studio `53a2e6505f`) is a production build from
+  [koenswings/service-kolibri-studio](https://github.com/koenswings/service-kolibri-studio) `Dockerfile`:
+  - `yarn run build` + `collectstatic` run in the image build;
+  - gunicorn + whitenoise serve on 8080, with `contentcuration.idea_settings` and `RUN_MODE=k8s`;
+  - `docker/idea-entrypoint.py` migrates the database and creates the bucket and one admin.
+  - There is no webpack devserver, so no `4000` port.
+- **postgres** `koenswings/kolibri-postgres:1.0-2024.12.03` comes from
+  [koenswings/service-kolibri-postgres](https://github.com/koenswings/service-kolibri-postgres)
+  (`postgres:12` + pgvector).
+- **redis** `redis:7.2.17@sha256:5b816bb3…` is the official image (multi-arch, linux/arm64/v8), persistence off.
+- Both custom images are built on an ARM64 Pi, so `docker manifest inspect` can't check them before
+  they are published. Check `docker image inspect --format '{{.Architecture}}' <image>` on the Pi
+  that builds them, then publish and pin `repo:tag@sha256:…`.
