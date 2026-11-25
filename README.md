@@ -11,6 +11,8 @@ that is declared uses relative `./data` binds (`./data/minio`,
 ([idea#141](https://github.com/koenswings/idea/issues/141)); the `.` bind and
 the unpinned tags do not. Do not ship this compose to a school kit as-is.
 
+`x-app.version` on main is **1.1** (not tagged). The latest git tag and GitHub Release is **1.0-2024.12.03**. Until 1.1 is tagged, that 1.0 release is the last published version.
+
 ## Release check against the previous release (idea#403)
 
 - **Before tagging a release, run `script/check-base-ref.sh` in a full clone with tags, with `AAD_CHECK_COMPOSE` set:** `AAD_CHECK_COMPOSE=<agent-app-dev>/script/check-compose.mjs script/check-base-ref.sh`.
