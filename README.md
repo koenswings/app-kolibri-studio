@@ -1,6 +1,16 @@
 # app-kolibri-studio
 Compose file for the kolibri-studio app
 
+**Not production-ready** and not a Kit-managed release yet (`app.yaml`:
+“Needs proper audit before first Kit-managed release”). The current
+`compose.yaml` still uses unpinned or dev image tags (`:latest_dev`,
+`minio/minio:…-arm64`, `redis:6.0.9` without a digest), bind-mounts `.` at
+`/src`, and is missing a Docker healthcheck on most services. Persistent data
+that is declared uses relative `./data` binds (`./data/minio`,
+`./data/postgres`), which matches the App Disk convention
+([idea#141](https://github.com/koenswings/idea/issues/141)); the `.` bind and
+the unpinned tags do not. Do not ship this compose to a school kit as-is.
+
 ## Release check against the previous release (idea#403)
 
 - **Before tagging a release, run `script/check-base-ref.sh` in a full clone with tags, with `AAD_CHECK_COMPOSE` set:** `AAD_CHECK_COMPOSE=<agent-app-dev>/script/check-compose.mjs script/check-base-ref.sh`.
